@@ -20,7 +20,6 @@ get_user_preferences() {
     echo -e "${BOLD}${YELLOW}Welcome to the server setup script!${NC}"
     echo
     echo -e "${CYAN}Would you like to configure persistent Netplan network settings?${NC}"
-    #echo -e "${YELLOW}──────────────────────────────────────────────────────────────${NC}"
     echo
     echo -e "► ${GREEN}Recommended for ${BOLD}SERVER${NC} installations"
     echo -e "► ${RED}Not recommended for ${BOLD}DESKTOP${NC} installations that uses NetworkManager"
