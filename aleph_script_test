@@ -17,7 +17,7 @@ configure_netplan="n"
 
 # Function to get user preferences
 get_user_preferences() {
-    echo -e "${BOLD}${YELLOW}Welcome to the server setup script!${NC}"
+    echo -e "${BOLD}${CYAN}Welcome to the server setup script!${NC}"
     echo
     echo -e "${CYAN}Would you like to configure persistent Netplan network settings?${NC}"
     echo
