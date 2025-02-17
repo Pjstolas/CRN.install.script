@@ -11,6 +11,7 @@ BLUE='\033[0;34m'
 CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 BOLD='\033[1m'
+UNDERLINE='\033[4m'
 
 # Variables for user choices
 configure_netplan="n"
@@ -92,7 +93,7 @@ configure_caddy_aleph() {
 }
 
 
-<--------->:443 {
+<---->:443 {
     tls {
        on_demand
     }
@@ -182,11 +183,15 @@ main() {
     if [ "$configure_netplan" = "y" ]; then
         configure_persistent_network
     fi
-    
+
+    echo
     echo -e "${BLUE}${BOLD}Script installation complete!${NC}"
-    echo -e "${BLUE}${BOLD}Please manual config supervisor.env, Caddyfile (1) and Netplan 01-netcfg.yaml file (2):${NC}"
-    echo -e " ${BLUE}${BOLD}(1) ►${NC} Use nano to edit '/etc/aleph-vm/supervisor.env' and '/etc/caddy/Caddyfile' files with your domain and the network interface (ip a)"
-    echo -e " ${BLUE}${BOLD}(2) ►${NC} Use nano to edit '/etc/netplan/01-netcfg.yaml' and config your IPv4, IPv6 addresses and gateways" 
+    echo -e "Please manual config supervisor.env and Caddyfile${YELLOW}${BOLD}(1)${NC}" 
+    echo -e "Netplan 01-netcfg.yaml file${YELLOW}${BOLD}(2)${NC} if it was chosen earlier"
+    echo -e ┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄
+    echo -e "${YELLOW}${BOLD}(1) ►${NC} Use nano to edit '/etc/aleph-vm/supervisor.env' and '/etc/caddy/Caddyfile' files with your domain and the network interface (ip a)"
+    echo -e "${YELLOW}${BOLD}(2) ►${NC} Use nano to edit '/etc/netplan/01-netcfg.yaml' and config your IPv4, IPv6 addresses and gateways." 
+    echo -e "${YELLOW}${BOLD}(3) ►${NC} Reboot the server"
 }
 
 # Run the main function
