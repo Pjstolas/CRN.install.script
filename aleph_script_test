@@ -20,8 +20,8 @@ get_user_preferences() {
     echo
     echo -e "${CYAN}${BOLD}Would you like to configure Netplan network settings?${NC}"
     echo
-    echo -e "► ${GREEN}Netplan is normally used in ${BOLD}SERVER${NC} OS installations"
-    echo -e "► ${RED}NetworkManager is normally used in ${BOLD}DESKTOP${NC} OS installations"
+    echo -e "► ${GREEN}Netplan is normally used in ${BOLD}SERVER OS${NC} installations"
+    echo -e "► ${RED}NetworkManager is normally used in ${BOLD}DESKTOP OS${NC} installations"
     echo
     echo -e "${CYAN}Choose:${NC}"
     echo -e "  ${GREEN}[y] ${NC}- Yes, configure Netplan (for servers installs)"
