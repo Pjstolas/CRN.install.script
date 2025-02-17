@@ -183,10 +183,10 @@ main() {
         configure_persistent_network
     fi
     
-    echo -e "${CYAN}${BOLD}Setup completed successfully!${NC}"
-    echo -e "${CYAN}${BOLD}To finish installation you must:${NC}"
-    echo -e " ${BLUE}${BOLD}►${NC} Use nano to edit '/etc/aleph-vm/supervisor.env' and '/etc/caddy/Caddyfile' files with your domain and the network interface (ip a)"
-    echo -e " ${BLUE}${BOLD}►${NC} Use nano to edit '/etc/netplan/01-netcfg.yaml' and config your IPv4, IPv6 addresses and gateways" 
+    echo -e "${BLUE}${BOLD}Script installation complete!${NC}"
+    echo -e "${BLUE}${BOLD}Please manual config supervisor.env, Caddyfile (1) and Netplan 01-netcfg.yaml file (2):${NC}"
+    echo -e " ${BLUE}${BOLD}(1) ►${NC} Use nano to edit '/etc/aleph-vm/supervisor.env' and '/etc/caddy/Caddyfile' files with your domain and the network interface (ip a)"
+    echo -e " ${BLUE}${BOLD}(2) ►${NC} Use nano to edit '/etc/netplan/01-netcfg.yaml' and config your IPv4, IPv6 addresses and gateways" 
 }
 
 # Run the main function
