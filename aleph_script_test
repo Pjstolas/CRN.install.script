@@ -185,6 +185,7 @@ main() {
     fi
 
     echo
+    echo
     echo -e "${BLUE}${BOLD}Script installation complete!${NC}"
     echo -e "Please manual config supervisor.env and Caddyfile${YELLOW}${BOLD}(1)${NC}" 
     echo -e "Netplan 01-netcfg.yaml file${YELLOW}${BOLD}(2)${NC} if it was chosen earlier"
