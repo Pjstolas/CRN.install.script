@@ -17,10 +17,11 @@ configure_netplan="n"
 
 # Function to get user preferences
 get_user_preferences() {
-    echo -e "${CYAN}Would you like to configure Netplan network settings?${NC}"
+    echo
+    echo -e "${CYAN}${BOLD}Would you like to configure Netplan network settings?${NC}"
     echo
     echo -e "► ${GREEN}Netplan is normally used in ${BOLD}SERVER${NC} installations"
-    echo -e "► ${RED}NetworkManager is normally used in desktop ${BOLD}DESKTOP${NC} installations"
+    echo -e "► ${RED}NetworkManager is normally used in ${BOLD}DESKTOP${NC} installations"
     echo
     echo -e "${CYAN}Choose:${NC}"
     echo -e "  ${GREEN}[y] ${NC}- Yes, configure Netplan (for servers)"
