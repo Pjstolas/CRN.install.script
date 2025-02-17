@@ -20,11 +20,11 @@ get_user_preferences() {
     echo
     echo -e "${CYAN}${BOLD}Would you like to configure Netplan network settings?${NC}"
     echo
-    echo -e "► ${GREEN}Netplan is normally used in ${BOLD}SERVER${NC} installations"
-    echo -e "► ${RED}NetworkManager is normally used in ${BOLD}DESKTOP${NC} installations"
+    echo -e "► ${GREEN}Netplan is normally used in ${BOLD}SERVER${NC} OS installations"
+    echo -e "► ${RED}NetworkManager is normally used in ${BOLD}DESKTOP${NC} OS installations"
     echo
     echo -e "${CYAN}Choose:${NC}"
-    echo -e "  ${GREEN}[y] ${NC}- Yes, configure Netplan (for servers)"
+    echo -e "  ${GREEN}[y] ${NC}- Yes, configure Netplan (for servers installs)"
     echo -e "  ${RED}[n] ${NC}- No, skip Netplan configuration and keep the default config (for desktops)"
     echo
     read -p "$(echo -e "${YELLOW}Your choice ${NC}(y/n) [default: n]: ")" configure_netplan
@@ -183,8 +183,11 @@ main() {
         configure_persistent_network
     fi
     
-    echo "Setup completed successfully!"
-    echo "To finish installation use NANO to manually change '/etc/aleph-vm/supervisor.env' and '/etc/caddy/Caddyfile' files with your domain and the network interface (ip a)"
+    echo -e "${CYAN}${BOLD} Setup completed successfully!${NC}"
+    echo -e "${CYAN}${BOLD} To finish installation you need:${NC}"
+    echo
+    echo -e "► Use ${BOLD}nano${NC} to edit '/etc/aleph-vm/supervisor.env' and '/etc/caddy/Caddyfile' files with your domain and the network interface (ip a)"
+    echo -e "► Use ${BOLD}nano${NC} to edit '/etc/netplan/01-netcfg.yaml' and config your IPv4, IPv6 addresses/gateways" 
 }
 
 # Run the main function
