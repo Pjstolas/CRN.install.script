@@ -23,5 +23,4 @@ The script supports all the aleph.im OS versions.
   8) installs the appropriate aleph-vm version based on the OS version
   9) Installs Caddy
 
-**After the install do a server reboot**
-**
+**After the install user should do a server reboot**
