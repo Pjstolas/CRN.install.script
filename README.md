@@ -1,7 +1,7 @@
 This is a simple script to automate a few steps in the process of installing a Core Resource Node (**CRN**) for the ALEPH.IM project.
 
 The script supports all the aleph.im OS versions. 
-**NOTE**: The only tested OS version so far is **Ubuntu 22.04**.
+**NOTE**: The only tested OS version so far is **Ubuntu 22.04 - both desktop and server versions**.
 
 
 **To run the script:**
