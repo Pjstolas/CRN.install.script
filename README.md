@@ -4,7 +4,7 @@ The script supports all the aleph.im OS versions.
 **NOTE**: The only tested OS version so far is **Ubuntu 22.04 - both desktop and server versions**.
 
 
-**To run the script:**
+**# To run the script:**
   1) Make sure you have an internet connection
   2) Open the terminal: 
   3) "wget https://raw.githubusercontent.com/Pjstolas/CRN.install.sh/refs/heads/main/crn.aleph.install"     # Download the script to your server
