@@ -14,7 +14,7 @@ The script supports all the aleph.im OS versions.
 
 **The script does the following:**
   1) Detects if the script is running as sudo or root
-  2) Detects OS (for installing the right aleph version)
+  2) Detects OS (for installing the right aleph-vm version)
   3) Asks if the user wants to setup his own networking configuration using **NETPLAN**. If answered yes, it starts the installation and it will be asked the IPv4/IPv6 addresses and respective gateways. (In some Cloud Providers users must configure it's own netplan/50-cloud-init.yaml file in order to have a working /64 IPv6)
   4) Asks for a **subdmain.domain.com** to be configured in supervisor.env file and Caddyfile as mandatory
   5) Update / upgrade the system
