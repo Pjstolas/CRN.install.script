@@ -22,5 +22,3 @@ The script supports all the aleph.im OS versions.
   7) Installs docker and run the vm-connector
   8) installs the appropriate aleph-vm version based on the OS version
   9) Installs Caddy
-  10) 
-  
