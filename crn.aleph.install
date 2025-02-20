@@ -15,20 +15,98 @@ UNDERLINE='\033[4m'
 
 # Variables for user choices
 configure_netplan="n"
+ipv4_address=""
+ipv4_gateway=""
+ipv6_address=""
+ipv6_gateway=""
+domain_name=""
 
-# Function to get user preferences
+
+# Function to display script introduction
+script_intro() {
+    echo
+    echo -e "╔═══════════════════════════════════════════════════════════════════════╗"
+    echo -e "║               ${BLUE}${BOLD}Welcome to the Installer for ALEPH CRNs${NC}                 ║"
+    echo -e "╠═══════════════════════════════════════════════════════════════════════╣"
+    echo -e "║  ${BOLD}This script will guide you through the installation process.${NC}         ║"
+    echo -e "║                                                                       ║"
+    printf "║  ► Please follow the on-screen instructions carefully.                ║\n"
+    printf "║  ► Some steps require user input.                                     ║\n"
+    printf "║  ► Grab server IP's (v4/v6) and the subdomain u'll be using for ALEPH.║\n"
+    printf "║  ► Set IPv6 gateway: It could be 2***:****::1 or a different one.     ║\n"
+    echo -e "║                                                                       ║"
+    printf "║  ${YELLOW}Press any key to start...${NC}                                            ║\n"
+    echo -e "╚═══════════════════════════════════════════════════════════════════════╝"
+    echo
+    read -n 1 -s
+}
+
+
+
+# Function to check if the script is run with sudo
+check_sudo() {
+    if [ "$EUID" -ne 0 ]; then
+        echo -e "${RED}Please run this script with sudo or as root.${NC}"
+        exit 1
+    fi
+}
+
+
+
+
+# Function to detect OS
+detect_os() {
+    if [ -f /etc/os-release ]; then
+        . /etc/os-release
+        OS=$NAME
+        VERSION=$VERSION_ID
+        echo -e "${BLUE}${BOLD}Detected OS: $OS $VERSION${NC}"
+        
+        case "$OS" in
+            "Ubuntu")
+                if [ "$VERSION_ID" != "22.04" ] && [ "$VERSION_ID" != "24.04" ]; then
+                    echo "This script only supports Ubuntu 22.04 and 24.04"
+                    exit 1
+                fi
+                ;;
+            "Debian GNU/Linux")
+                if [ "$VERSION_ID" != "12" ]; then
+                    echo "This script only supports Debian 12"
+                    exit 1
+                fi
+                ;;
+            *)
+                echo "This script only supports Ubuntu 22.04, Ubuntu 24.04, and Debian 12"
+                exit 1
+                ;;
+        esac
+    else
+        echo "Cannot detect OS. Exiting..."
+        exit 1
+    fi
+}
+
+
+
+
+
+# Function to get Networking user preferences
 get_user_preferences() {
     echo
-    echo -e "${YELLOW}${BOLD}Would you like to configure Netplan network settings?${NC}"
+    echo -e "╔═══════════════════════════════════════════════════════════════════════╗"
+    echo -e "║                        ${BLUE}${BOLD}Network Configuration${NC}                          ║"
+    echo -e "╠═══════════════════════════════════════════════════════════════════════╣"
+    echo -e "║  Would you like to configure Netplan?                                 ║"
+    echo -e "║                                                                       ║"
+    printf "║  ► Netplan is normally used in ${GREEN}SERVER OS${NC} installations                ║\n"
+    printf "║  ► NetworkManager is normally used in ${RED}DESKTOP OS${NC} installations        ║\n"
+    echo -e "║                                                                       ║"
+    printf "║  ${YELLOW}${BOLD}Choose:${NC}                                                              ║\n"
+    printf "║    ${GREEN}[y]${NC} - Yes, configure Netplan (for servers OS)                      ║\n"
+    printf "║    ${RED}[n]${NC} - No, skip Netplan, continue with default (for desktops)       ║\n"
+    echo -e "╚═══════════════════════════════════════════════════════════════════════╝"
     echo
-    echo -e "► Netplan is normally used in ${GREEN}${BOLD}SERVER OS${NC} installations"
-    echo -e "► NetworkManager is normally used in ${RED}${BOLD}DESKTOP OS${NC} installations"
-    echo
-    echo -e "${YELLOW}${BOLD}Choose:${NC}"
-    echo -e "  ${GREEN}[y] ${NC}- Yes, configure Netplan (for servers installs)"
-    echo -e "  ${RED}[n] ${NC}- No, skip Netplan configuration and keep the default config (for desktops)"
-    echo
-    read -p "$(echo -e "${YELLOW}${BOLD}Your choice ${NC}(y/n) [default: n]: ")" configure_netplan
+    read -p "$(echo -e "${YELLOW}${BOLD}Your choice: ${NC}(y/n) [default: n]: ")" configure_netplan
     configure_netplan=${configure_netplan:-n}
     echo
     
@@ -40,13 +118,65 @@ get_user_preferences() {
     echo
 }
 
-# Function to check if the script is run with sudo
-check_sudo() {
-    if [ "$EUID" -ne 0 ]; then
-        echo "Please run this script with sudo or as root."
-        exit 1
+
+
+
+# Function to get IP configuration
+get_ip_config() {
+    echo
+    echo -e "╔═══════════════════════════════════════════════════════════════════════╗"
+    echo -e "║                       ${BLUE}${BOLD}Network Configuration${NC}                           ║"
+    echo -e "╠═══════════════════════════════════════════════════════════════════════╣"
+    echo -e "║  Please enter your network details below.                             ║"
+    echo -e "║  Press Enter to skip any field if you wish to configure it later.     ║"
+    echo -e "╠═══════════════════════════════════════════════════════════════════════╣"
+    echo -e "║  ${CYAN}${BOLD}IPv4 Configuration:${NC}                                                  ║"
+    echo -e "║                                                                       ║"
+    read -p "$(echo -e "║  ${YELLOW}${BOLD}Enter IPv4 address with subnet (e.g., 123.134.1.145/24): ${NC}")" ipv4_address 
+    read -p "$(echo -e "║  ${YELLOW}${BOLD}Enter IPv4 gateway (e.g., 123.134.1.1): ${NC}")" ipv4_gateway
+    echo -e "║                                                                       ║"
+    echo -e "║  ${CYAN}${BOLD}IPv6 Configuration:${NC}                                                  ║"
+    echo -e "║                                                                       ║"
+    read -p "$(echo -e "║  ${YELLOW}${BOLD}Enter IPv6 address with subnet (e.g., 2001:db8::100/64): ${NC}")" ipv6_address
+    read -p "$(echo -e "║  ${YELLOW}${BOLD}Enter IPv6 gateway (e.g., 2001:db8::1 or fe80::1): ${NC}")" ipv6_gateway
+    echo -e "╚═══════════════════════════════════════════════════════════════════════╝"
+    echo
+
+    if [ -n "$ipv4_address" ] || [ -n "$ipv6_address" ]; then
+        echo -e "${GREEN}Network configuration will be applied with provided values.${NC}"
+    else
+        echo -e "${YELLOW}No IP addresses provided. You will need to configure this manually later.${NC}"
     fi
+    echo
 }
+
+
+
+
+# Function to get domain configuration
+get_domain_config() {
+    echo
+    echo -e "╔═══════════════════════════════════════════════════════════════════════╗"
+    echo -e "║             ${BLUE}${BOLD}Domain Configuration${NC}                                      ║"
+    echo -e "╠═══════════════════════════════════════════════════════════════════════╣"
+    echo -e "║  This domain will be used in both supervisor.env and Caddyfile.       ║"
+    echo -e "║  You can modify these later.                                          ║"
+    echo -e "║                                                                       ║"
+    read -p "$(echo -e "║  ${YELLOW}${BOLD}Enter your domain name ${NC}(press Enter to skip): ")" domain_name
+    echo -e "╚═══════════════════════════════════════════════════════════════════════╝"
+    echo
+
+    if [ -n "$domain_name" ]; then
+        echo -e "${GREEN}Domain name set to: $domain_name${NC}"
+    else
+        echo -e "${YELLOW}No domain name provided. You will need to configure this manually later.${NC}"
+    fi
+    echo
+}
+
+
+
+
 
 # Function to update and upgrade the OS
 update_upgrade() {
@@ -55,45 +185,86 @@ update_upgrade() {
     apt upgrade -y
 }
 
+
+
 # Function to disable os logs 
 rsyslog_disable() {
     systemctl disable rsyslog.service
 }
 
+
+
 # Function to install Docker and run vm-connector
 install_docker_vmconnector() {
     echo "Installing Docker and running vm-connector..."
-    apt install -y docker.io
+    case "$OS" in
+        "Ubuntu"|"Debian GNU/Linux")
+            apt install -y docker.io
+            ;;
+    esac
     docker run -d -p 127.0.0.1:4021:4021/tcp --restart=always --name vm-connector alephim/vm-connector:alpha
 }
+
+
 
 # Function to install aleph-vm
 install_aleph_vm() {
     echo "Installing aleph-vm..."
-    wget -P /opt https://github.com/aleph-im/aleph-vm/releases/download/1.3.1/aleph-vm.ubuntu-22.04.deb
-    apt install -y /opt/aleph-vm.ubuntu-22.04.deb
+    local package_name=""
+    
+    case "$OS" in
+        "Ubuntu")
+            if [ "$VERSION_ID" = "22.04" ]; then
+                package_name="aleph-vm.ubuntu-22.04.deb"
+            elif [ "$VERSION_ID" = "24.04" ]; then
+                package_name="aleph-vm.ubuntu-24.04.deb"
+            fi
+            ;;
+        "Debian GNU/Linux")
+            if [ "$VERSION_ID" = "12" ]; then
+                package_name="aleph-vm.debian-12.deb"
+            fi
+            ;;
+    esac
+    
+    wget -P /opt https://github.com/aleph-im/aleph-vm/releases/download/1.4.0/${package_name}
+    apt install -y /opt/${package_name}
 }
+
+
 
 # Function to install Caddy
 install_caddy() {
     echo "Installing Caddy..."
-    apt install -y debian-keyring debian-archive-keyring apt-transport-https
-    curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
-    curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | tee /etc/apt/sources.list.d/caddy-stable.list
-    apt update
-    apt install -y caddy
+    case "$OS" in
+        "Ubuntu"|"Debian GNU/Linux")
+            apt install -y debian-keyring debian-archive-keyring apt-transport-https
+            curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+            curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | tee /etc/apt/sources.list.d/caddy-stable.list
+            apt update
+            apt install -y caddy
+            ;;
+    esac
 }
+
+
 
 # Function to configure Caddy and aleph-vm
 configure_caddy_aleph() {
     echo "Configuring Caddy and aleph-vm..."
+    
+    # Use domain name in Caddyfile if provided, otherwise keep placeholder
+    local domain_placeholder="<---->"
+    if [ -n "$domain_name" ]; then
+        domain_placeholder="$domain_name"
+    fi
+    
     cat >/etc/caddy/Caddyfile <<EOL
 {
     https_port 443
 }
 
-
-<---->:443 {
+$domain_placeholder:443 {
     tls {
        on_demand
     }
@@ -108,20 +279,17 @@ EOL
     cat >/etc/aleph-vm/supervisor.env <<EOL
 ALEPH_VM_PRINT_SYSTEM_LOGS=True
 #ALEPH_VM_USE_JAILER=True
-ALEPH_VM_DOMAIN_NAME=
+ALEPH_VM_DOMAIN_NAME=$domain_name
 ALEPH_VM_NETWORK_INTERFACE=ens18
 ALEPH_VM_DNS_RESOLUTION=resolvectl
 ALEPH_VM_IPV6_FORWARDING_ENABLED=False
 #ALEPH_VM_IPV6_ADDRESS_POOL="/64"
 ALEPH_VM_PAYMENT_RECEIVER_ADDRESS=""
+ALEPH_VM_ENABLE_GPU_SUPPORT=True
 EOL
 }
 
-# Function to install sshd
-install_openssh() {
-    echo "Installing oepnssh..."
-    sudo apt install openssh-server -y
-}
+
 
 # Function to make network configuration persistent
 configure_persistent_network() {
@@ -129,6 +297,32 @@ configure_persistent_network() {
     
     # Disable cloud-init network management
     echo "network: {config: disabled}" > /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg
+    
+    # Prepare addresses array for netplan
+    local addresses=""
+    if [ -n "$ipv6_address" ]; then
+        addresses="            - $ipv6_address"
+    fi
+    if [ -n "$ipv4_address" ]; then
+        if [ -n "$addresses" ]; then
+            addresses="$addresses\n            - $ipv4_address"
+        else
+            addresses="            - $ipv4_address"
+        fi
+    fi
+    
+    # Prepare routes for netplan
+    local routes=""
+    if [ -n "$ipv4_gateway" ]; then
+        routes="            - to: default\n              via: $ipv4_gateway"
+    fi
+    if [ -n "$ipv6_gateway" ]; then
+        if [ -n "$routes" ]; then
+            routes="$routes\n            - to: ::/0\n              via: $ipv6_gateway\n              on-link: true"
+        else
+            routes="            - to: ::/0\n              via: $ipv6_gateway\n              on-link: true"
+        fi
+    fi
     
     # Create persistent netplan configuration
     cat > /etc/netplan/01-netcfg.yaml <<EOL
@@ -139,8 +333,7 @@ network:
             dhcp4: no
             dhcp6: no
             addresses:
-            - 2***:****:****:****::11/64
-            - 1***.***.***.***/24
+$(echo -e "$addresses")
             nameservers:
                 addresses:
                 - 8.8.8.8
@@ -148,11 +341,7 @@ network:
                 - 2001:4860:4860::8888
                 - 2001:4860:4860::8844
             routes:
-            - to: default
-              via: 1.***.***.1
-            - to: ::/0
-              via: 2:****::1
-              on-link: true
+$(echo -e "$routes")
     version: 2
 EOL
 
@@ -168,18 +357,23 @@ EOL
     echo "Network configuration made persistent!"
 }
 
+
 # Main execution
 main() {
+    script_intro
     check_sudo
+    detect_os
     get_user_preferences
+    if [ "$configure_netplan" = "y" ]; then
+        get_ip_config
+    fi
+    get_domain_config
     update_upgrade
     rsyslog_disable
     install_docker_vmconnector
     install_aleph_vm
     install_caddy
     configure_caddy_aleph
-   # install_openssh
-   # Only run network configuration if user chose to
     if [ "$configure_netplan" = "y" ]; then
         configure_persistent_network
     fi
@@ -187,13 +381,21 @@ main() {
     echo
     echo
     echo -e "${BLUE}${BOLD}Script installation complete!${NC}"
-    echo -e "Please manual config supervisor.env and Caddyfile${YELLOW}${BOLD}(1)${NC}" 
-    echo -e "Netplan 01-netcfg.yaml file${YELLOW}${BOLD}(2)${NC} if it was chosen earlier"
-    echo -e ┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄
-    echo -e "${YELLOW}${BOLD}(1) ►${NC} Use nano to edit '/etc/aleph-vm/supervisor.env' and '/etc/caddy/Caddyfile' files with your domain and the network interface (ip a)"
+    if [ -z "$domain_name" ]; then
+        echo -e "Please manual config supervisor.env and Caddyfile${YELLOW}${BOLD}(1)${NC}" 
+    else
+        echo -e "Domain name has been configured in supervisor.env and Caddyfile"
+        echo -e "You can review and modify these files if needed${YELLOW}${BOLD}(1)${NC}" 
+    fi
+    if [ "$configure_netplan" = "y" ] && [ -z "$ipv4_address" ] && [ -z "$ipv6_address" ]; then
+        echo -e "Netplan configuration needs manual setup${YELLOW}${BOLD}(2)${NC}"
+    fi
+    echo -e "┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄"
+    echo -e "${YELLOW}${BOLD}(1) ►${NC} Use nano to edit '/etc/aleph-vm/supervisor.env' and '/etc/caddy/Caddyfile' files with your domain and the network interface (ip a)(default: ens18)"
     echo -e "${YELLOW}${BOLD}(2) ►${NC} Use nano to edit '/etc/netplan/01-netcfg.yaml' and config your IPv4, IPv6 addresses and gateways." 
     echo -e "${YELLOW}${BOLD}(3) ►${NC} Reboot the server"
 }
+
 
 # Run the main function
 main
