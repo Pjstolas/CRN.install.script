@@ -227,7 +227,7 @@ install_aleph_vm() {
             ;;
     esac
     
-    wget -P /opt https://github.com/aleph-im/aleph-vm/releases/download/1.4.0/${package_name}
+    wget -P /opt https://github.com/aleph-im/aleph-vm/releases/download/1.4.1/${package_name}
     apt install -y /opt/${package_name}
 }
 
