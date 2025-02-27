@@ -3,6 +3,10 @@
 # Exit on any error
 set -e
 
+# Export locales to ensure predictable behavior
+export LC_ALL=C
+export LANG=C
+
 # Color definitions
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -14,13 +18,30 @@ BOLD='\033[1m'
 UNDERLINE='\033[4m'
 
 # Variables for user choices
-configure_netplan="n"
+configure_netplan=""
 ipv4_address=""
 ipv4_gateway=""
 ipv6_address=""
 ipv6_gateway=""
 domain_name=""
 
+# Function to get valid yes/no input
+get_yes_no_input() {
+    local prompt="$1"
+    local default="$2"
+    local answer=""
+    
+    while true; do
+        read -r -p "$(echo -e "${YELLOW}${BOLD}$prompt ${NC}(y/n) [default: $default]: ")" answer
+        answer=$(echo "$answer" | xargs)  # Trim whitespace
+        answer=${answer:-$default}
+        case "${answer,,}" in
+            y|yes) echo "y"; return ;;
+            n|no)  echo "n"; return ;;
+            *) echo -e "${RED}Please enter 'y' or 'n'${NC}" ;;
+        esac
+    done
+}
 
 # Function to display script introduction
 script_intro() {
@@ -32,16 +53,17 @@ script_intro() {
     echo -e "║                                                                       ║"
     printf "║  ► Please follow the on-screen instructions carefully.                ║\n"
     printf "║  ► Some steps require user input.                                     ║\n"
-    printf "║  ► Grab server IP's (v4/v6) and the subdomain u'll be using for ALEPH.║\n"
+    printf "║  ► Grab server IP's (v4/v6) and the subdomain you'll be using for ALEPH.║\n"
     printf "║  ► Set IPv6 gateway: It could be 2***:****::1 or a different one.     ║\n"
     echo -e "║                                                                       ║"
     printf "║  ${YELLOW}Press any key to start...${NC}                                            ║\n"
     echo -e "╚═══════════════════════════════════════════════════════════════════════╝"
     echo
     read -n 1 -s
+    # Flush any remaining newline or stray characters
+    read -r -t 0.1 -n 10000 discard || true
+    echo
 }
-
-
 
 # Function to check if the script is run with sudo
 check_sudo() {
@@ -50,9 +72,6 @@ check_sudo() {
         exit 1
     fi
 }
-
-
-
 
 # Function to detect OS
 detect_os() {
@@ -86,10 +105,6 @@ detect_os() {
     fi
 }
 
-
-
-
-
 # Function to get Networking user preferences
 get_user_preferences() {
     echo
@@ -106,20 +121,17 @@ get_user_preferences() {
     printf "║    ${RED}[n]${NC} - No, skip Netplan, continue with default (for desktops)       ║\n"
     echo -e "╚═══════════════════════════════════════════════════════════════════════╝"
     echo
-    read -p "$(echo -e "${YELLOW}${BOLD}Your choice: ${NC}(y/n) [default: n]: ")" configure_netplan
-    configure_netplan=${configure_netplan:-n}
-    echo
+
+    configure_netplan=$(get_yes_no_input "Your choice:" "n")
     
+    echo
     if [ "$configure_netplan" = "y" ]; then
         echo -e "${GREEN}Netplan configuration will be included in the setup.${NC}"
     else
-        echo -e "${YELLOW}Skipping Netplan configuration.${NC}"
+        echo -e "${RED}Skipping Netplan configuration.${NC}"
     fi
     echo
 }
-
-
-
 
 # Function to get IP configuration
 get_ip_config() {
@@ -132,13 +144,13 @@ get_ip_config() {
     echo -e "╠═══════════════════════════════════════════════════════════════════════╣"
     echo -e "║  ${CYAN}${BOLD}IPv4 Configuration:${NC}                                                  ║"
     echo -e "║                                                                       ║"
-    read -p "$(echo -e "║  ${YELLOW}${BOLD}Enter IPv4 address with subnet (e.g., 123.134.1.145/24): ${NC}")" ipv4_address 
-    read -p "$(echo -e "║  ${YELLOW}${BOLD}Enter IPv4 gateway (e.g., 123.134.1.1): ${NC}")" ipv4_gateway
+    read -r -p "$(echo -e "║  ${YELLOW}${BOLD}Enter IPv4 address with subnet (e.g., 123.134.1.145/24): ${NC}")" ipv4_address 
+    read -r -p "$(echo -e "║  ${YELLOW}${BOLD}Enter IPv4 gateway (e.g., 123.134.1.1): ${NC}")" ipv4_gateway
     echo -e "║                                                                       ║"
     echo -e "║  ${CYAN}${BOLD}IPv6 Configuration:${NC}                                                  ║"
     echo -e "║                                                                       ║"
-    read -p "$(echo -e "║  ${YELLOW}${BOLD}Enter IPv6 address with subnet (e.g., 2001:db8::100/64): ${NC}")" ipv6_address
-    read -p "$(echo -e "║  ${YELLOW}${BOLD}Enter IPv6 gateway (e.g., 2001:db8::1 or fe80::1): ${NC}")" ipv6_gateway
+    read -r -p "$(echo -e "║  ${YELLOW}${BOLD}Enter IPv6 address with subnet (e.g., 2001:db8::100/64): ${NC}")" ipv6_address
+    read -r -p "$(echo -e "║  ${YELLOW}${BOLD}Enter IPv6 gateway (e.g., 2001:db8::1 or fe80::1): ${NC}")" ipv6_gateway
     echo -e "╚═══════════════════════════════════════════════════════════════════════╝"
     echo
 
@@ -150,9 +162,6 @@ get_ip_config() {
     echo
 }
 
-
-
-
 # Function to get domain configuration
 get_domain_config() {
     echo
@@ -162,7 +171,7 @@ get_domain_config() {
     echo -e "║  This domain will be used in both supervisor.env and Caddyfile.       ║"
     echo -e "║  You can modify these later.                                          ║"
     echo -e "║                                                                       ║"
-    read -p "$(echo -e "║  ${YELLOW}${BOLD}Enter your domain name ${NC}(press Enter to skip): ")" domain_name
+    read -r -p "$(echo -e "║  ${YELLOW}${BOLD}Enter your domain name ${NC}(press Enter to skip): ")" domain_name
     echo -e "╚═══════════════════════════════════════════════════════════════════════╝"
     echo
 
@@ -174,10 +183,6 @@ get_domain_config() {
     echo
 }
 
-
-
-
-
 # Function to update and upgrade the OS
 update_upgrade() {
     echo "Updating and upgrading the system..."
@@ -185,14 +190,10 @@ update_upgrade() {
     apt upgrade -y
 }
 
-
-
 # Function to disable os logs 
 rsyslog_disable() {
     systemctl disable rsyslog.service
 }
-
-
 
 # Function to install Docker and run vm-connector
 install_docker_vmconnector() {
@@ -204,8 +205,6 @@ install_docker_vmconnector() {
     esac
     docker run -d -p 127.0.0.1:4021:4021/tcp --restart=always --name vm-connector alephim/vm-connector:alpha
 }
-
-
 
 # Function to install aleph-vm
 install_aleph_vm() {
@@ -231,8 +230,6 @@ install_aleph_vm() {
     apt install -y /opt/${package_name}
 }
 
-
-
 # Function to install Caddy
 install_caddy() {
     echo "Installing Caddy..."
@@ -246,8 +243,6 @@ install_caddy() {
             ;;
     esac
 }
-
-
 
 # Function to configure Caddy and aleph-vm
 configure_caddy_aleph() {
@@ -288,8 +283,6 @@ ALEPH_VM_PAYMENT_RECEIVER_ADDRESS=""
 #ALEPH_VM_ENABLE_GPU_SUPPORT=True
 EOL
 }
-
-
 
 # Function to make network configuration persistent
 configure_persistent_network() {
@@ -357,14 +350,15 @@ EOL
     echo "Network configuration made persistent!"
 }
 
-
 # Main execution
 main() {
-    script_intro
     check_sudo
+    script_intro
     detect_os
     get_user_preferences
+    #echo "Debug: configure_netplan value is: $configure_netplan"
     if [ "$configure_netplan" = "y" ]; then
+        echo "Debug: Entering netplan configuration..."
         get_ip_config
     fi
     get_domain_config
@@ -375,27 +369,26 @@ main() {
     install_caddy
     configure_caddy_aleph
     if [ "$configure_netplan" = "y" ]; then
+        echo "Debug: Configuring persistent network..."
         configure_persistent_network
     fi
 
     echo
-    echo
     echo -e "${BLUE}${BOLD}Script installation complete!${NC}"
     if [ -z "$domain_name" ]; then
-        echo -e "Please manual config supervisor.env and Caddyfile${YELLOW}${BOLD}(1)${NC}" 
+        echo -e "Please manually configure supervisor.env and Caddyfile ${YELLOW}${BOLD}(1)${NC}" 
     else
         echo -e "Domain name has been configured in supervisor.env and Caddyfile"
-        echo -e "You can review and modify these files if needed${YELLOW}${BOLD}(1)${NC}" 
+        echo -e "You can review and modify these files if needed ${YELLOW}${BOLD}(1)${NC}" 
     fi
     if [ "$configure_netplan" = "y" ] && [ -z "$ipv4_address" ] && [ -z "$ipv6_address" ]; then
-        echo -e "Netplan configuration needs manual setup${YELLOW}${BOLD}(2)${NC}"
+        echo -e "Netplan configuration needs manual setup ${YELLOW}${BOLD}(2)${NC}"
     fi
-    echo -e "┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄"
-    echo -e "${YELLOW}${BOLD}(1) ►${NC} Use nano to edit '/etc/aleph-vm/supervisor.env' and '/etc/caddy/Caddyfile' files with your domain and the network interface (ip a)(default: ens18)"
-    echo -e "${YELLOW}${BOLD}(2) ►${NC} Use nano to edit '/etc/netplan/01-netcfg.yaml' and config your IPv4, IPv6 addresses and gateways." 
+    echo -e "┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄"
+    echo -e "${YELLOW}${BOLD}(1) ►${NC} Use nano to edit '/etc/aleph-vm/supervisor.env' and '/etc/caddy/Caddyfile' with your domain and the network interface (default: ens18)"
+    echo -e "${YELLOW}${BOLD}(2) ►${NC} Use nano to edit '/etc/netplan/01-netcfg.yaml' to configure your IPv4/IPv6 addresses and gateways." 
     echo -e "${YELLOW}${BOLD}(3) ►${NC} Reboot the server"
 }
-
 
 # Run the main function
 main
