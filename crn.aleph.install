@@ -7,6 +7,7 @@ set -e
 export LC_ALL=C
 export LANG=C
 
+
 # Color definitions
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -24,6 +25,8 @@ ipv4_gateway=""
 ipv6_address=""
 ipv6_gateway=""
 domain_name=""
+ipv6_prefix=""
+ipv6_subnet=""
 
 # Function to get valid yes/no input
 get_yes_no_input() {
@@ -133,7 +136,7 @@ get_user_preferences() {
     echo
 }
 
-# Function to get IP configuration
+# Function to get IP configuration with IPv6 prefix extraction
 get_ip_config() {
     echo
     echo -e "╔═══════════════════════════════════════════════════════════════════════╗"
@@ -153,6 +156,26 @@ get_ip_config() {
     read -r -p "$(echo -e "║  ${YELLOW}${BOLD}Enter IPv6 gateway (e.g., 2001:db8::1 or fe80::1): ${NC}")" ipv6_gateway
     echo -e "╚═══════════════════════════════════════════════════════════════════════╝"
     echo
+
+    # Extract IPv6 prefix if an IPv6 address is provided
+    ipv6_prefix=""
+    if [ -n "$ipv6_address" ]; then
+        # Extract the subnet length (e.g., /64) from the IPv6 address
+        ipv6_subnet=$(echo "$ipv6_address" | grep -o '/[0-9]*$')
+        
+        # Extract the network part of the IPv6 address
+        if [[ "$ipv6_address" =~ ^([0-9a-fA-F:]+):: ]]; then
+            # For addresses with :: notation (like 2a03:cfc0:8000:0027::1/64)
+            ipv6_prefix="${BASH_REMATCH[1]}::"
+        elif [[ "$ipv6_address" =~ ^([0-9a-fA-F:]+:[0-9a-fA-F:]+):[0-9a-fA-F:]+/ ]]; then
+            # For fully expanded addresses
+            ipv6_prefix="${BASH_REMATCH[1]}::"
+        fi
+        
+        if [ -n "$ipv6_prefix" ] && [ -n "$ipv6_subnet" ]; then
+            echo -e "${GREEN}IPv6 prefix detected: ${ipv6_prefix}${ipv6_subnet}${NC}"
+        fi
+    fi
 
     if [ -n "$ipv4_address" ] || [ -n "$ipv6_address" ]; then
         echo -e "${GREEN}Network configuration will be applied with provided values.${NC}"
@@ -244,7 +267,7 @@ install_caddy() {
     esac
 }
 
-# Function to configure Caddy and aleph-vm
+# Function to configure Caddy and aleph-vm with IPv6 prefix support
 configure_caddy_aleph() {
     echo "Configuring Caddy and aleph-vm..."
     
@@ -271,14 +294,20 @@ $domain_placeholder:443 {
 }
 EOL
 
+    # Prepare IPv6 address pool configuration
+    local ipv6_pool_config="#ALEPH_VM_IPV6_ADDRESS_POOL=\"/64\""
+    if [ -n "$ipv6_prefix" ] && [ -n "$ipv6_subnet" ]; then
+        ipv6_pool_config="ALEPH_VM_IPV6_ADDRESS_POOL=\"${ipv6_prefix}${ipv6_subnet}\""
+    fi
+
     cat >/etc/aleph-vm/supervisor.env <<EOL
 ALEPH_VM_PRINT_SYSTEM_LOGS=True
 #ALEPH_VM_USE_JAILER=True
 ALEPH_VM_DOMAIN_NAME=$domain_name
 ALEPH_VM_NETWORK_INTERFACE=ens18
 ALEPH_VM_DNS_RESOLUTION=resolvectl
-ALEPH_VM_IPV6_FORWARDING_ENABLED=False
-#ALEPH_VM_IPV6_ADDRESS_POOL="/64"
+ALEPH_VM_IPV6_FORWARDING_ENABLED=True
+${ipv6_pool_config}
 ALEPH_VM_PAYMENT_RECEIVER_ADDRESS=""
 #ALEPH_VM_ENABLE_GPU_SUPPORT=True
 EOL
@@ -345,34 +374,12 @@ EOL
     mv /etc/netplan/50-cloud-init.yaml /etc/netplan/50-cloud-init.yaml.bak 2>/dev/null || true
     
     # Apply network configuration
-    netplan apply
-    
-    echo "Network configuration made persistent!"
+    echo "Network configuration will be applied after reboot!"
+    # Not applying netplan here, will be applied after reboot
 }
 
-# Main execution
-main() {
-    check_sudo
-    script_intro
-    detect_os
-    get_user_preferences
-    #echo "Debug: configure_netplan value is: $configure_netplan"
-    if [ "$configure_netplan" = "y" ]; then
-        echo "Debug: Entering netplan configuration..."
-        get_ip_config
-    fi
-    get_domain_config
-    update_upgrade
-    rsyslog_disable
-    install_docker_vmconnector
-    install_aleph_vm
-    install_caddy
-    configure_caddy_aleph
-    if [ "$configure_netplan" = "y" ]; then
-        echo "Debug: Configuring persistent network..."
-        configure_persistent_network
-    fi
-
+# Function to display completion message
+display_completion() {
     echo
     echo -e "${BLUE}${BOLD}Script installation complete!${NC}"
     if [ -z "$domain_name" ]; then
@@ -387,7 +394,181 @@ main() {
     echo -e "┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄"
     echo -e "${YELLOW}${BOLD}(1) ►${NC} Use nano to edit '/etc/aleph-vm/supervisor.env' and '/etc/caddy/Caddyfile' with your domain and the network interface (default: ens18)"
     echo -e "${YELLOW}${BOLD}(2) ►${NC} Use nano to edit '/etc/netplan/01-netcfg.yaml' to configure your IPv4/IPv6 addresses and gateways." 
-    echo -e "${YELLOW}${BOLD}(3) ►${NC} Reboot the server"
+    echo -e "${YELLOW}${BOLD}(3) ►${NC} System will now reboot to apply all changes..."
+    echo
+
+    # Sleep for a moment to allow the user to read the message
+    sleep 3
+    
+    # Schedule a reboot
+    echo "Rebooting in 3 seconds..."
+    sleep 1
+    echo "Rebooting in 2 seconds..."
+    sleep 1
+    echo "Rebooting in 1 second..."
+    sleep 1
+    echo "Rebooting now!"
+    /sbin/reboot
+    
+    # This ensures the script exits cleanly
+    exit 0
+}
+
+
+# Function to configure hostname and hosts file
+configure_hostname() {
+    echo
+    echo -e "╔═══════════════════════════════════════════════════════════════════════╗"
+    echo -e "║                  ${BLUE}${BOLD}Hostname Configuration${NC}                              ║"
+    echo -e "╠═══════════════════════════════════════════════════════════════════════╣"
+    echo -e "║  Please enter the hostname for this machine.                          ║"
+    echo -e "║  This will update /etc/hostname and /etc/hosts files.                 ║"
+    echo -e "║                                                                       ║"
+    read -r -p "$(echo -e "║  ${YELLOW}${BOLD}Enter hostname ${NC}(e.g., aleph-crn1): ")" hostname
+    echo -e "╚═══════════════════════════════════════════════════════════════════════╝"
+    echo
+    
+    if [ -z "$hostname" ]; then
+        echo -e "${YELLOW}No hostname provided. Skipping hostname configuration.${NC}"
+        return
+    fi
+    
+    # Update /etc/hostname
+    echo "$hostname" > /etc/hostname
+    
+    echo
+    echo -e "╔═══════════════════════════════════════════════════════════════════════╗"
+    echo -e "║                    ${BLUE}${BOLD}Hosts File Configuration${NC}                          ║"
+    echo -e "╠═══════════════════════════════════════════════════════════════════════╣"
+    echo -e "║  Do you want to add additional entries to /etc/hosts?                 ║"
+    echo -e "║  Standard entries for localhost and your hostname will be added       ║"
+    echo -e "║  automatically.                                                       ║"
+    echo -e "╚═══════════════════════════════════════════════════════════════════════╝"
+    echo
+    
+    #add_hosts=$(get_yes_no_input "Add additional hosts entries?" "n")
+    
+    # Prepare hosts file content
+    local hosts_content="127.0.0.1 localhost\n127.0.1.1 $hostname\n\n"
+    
+    # Add IPv6 localhost entry
+    hosts_content="${hosts_content}# The following lines are desirable for IPv6 capable hosts\n::1     ip6-localhost ip6-loopback\nfe00::0 ip6-localnet\nff00::0 ip6-mcastprefix\nff02::1 ip6-allnodes\nff02::2 ip6-allrouters\n\n"
+    
+    # Add custom entries if requested
+    #if [ "$add_hosts" = "y" ]; then
+    #    echo -e "${YELLOW}${BOLD}Enter additional hosts entries (format: IP HOSTNAME), one per line.${NC}"
+    #    echo -e "${YELLOW}${BOLD}Enter an empty line when done.${NC}"
+    #    echo
+    #    
+    #    while true; do
+    #        read -r -p "Host entry (or empty to finish): " host_entry
+    #        if [ -z "$host_entry" ]; then
+    #            break
+    #        fi
+    #        hosts_content="${hosts_content}${host_entry}\n"
+    #    done
+    #fi
+    
+    # If the domain name was provided, add it to hosts
+    #if [ -n "$domain_name" ] && [ -n "$ipv4_address" ]; then
+    #    local ip_without_subnet=$(echo "$ipv4_address" | cut -d'/' -f1)
+    #    hosts_content="${hosts_content}# Entry for Aleph domain\n${ip_without_subnet} ${domain_name}\n"
+    #fi
+    
+    # Write to /etc/hosts
+    echo -e "$hosts_content" > /etc/hosts
+    
+    echo -e "${GREEN}Hostname set to: $hostname${NC}"
+    echo -e "${GREEN}Hosts file has been updated.${NC}"
+    echo
+}
+
+
+
+# Function to disable SSH and allow only a specific user
+disable_ssh() {
+    echo
+    echo "Configuring SSH Security"
+    echo "-------------------"
+    
+    # Prompt for the user to allow
+    echo -e "${YELLOW}Enter the username to allow SSH access (leave blank to deny all)${NC}: "
+    read -r allowed_user
+    
+    # Stop the SSH service (works for most distros)
+    if command -v systemctl >/dev/null 2>&1; then
+        systemctl stop ssh  # For systemd-based systems
+        systemctl stop ssh.socket
+        systemctl disable ssh  # Prevent it from starting on reboot
+        systemctl disable ssh.socket
+        echo -e "${GREEN}SSH service stopped and disabled.${NC}"
+    elif command -v service >/dev/null 2>&1; then
+        service ssh stop  # For older SysVinit systems
+        echo -e "${GREEN}SSH service stopped.${NC}"
+    else
+        echo -e "${RED}Error: Could not determine how to stop SSH service.${NC}"
+        return 1
+    fi
+    
+    # Modify sshd_config to allow only the specified user (or deny all if blank)
+    SSH_CONFIG="/etc/ssh/sshd_config"
+    if [ -f "$SSH_CONFIG" ]; then
+        # Backup the original config
+        cp "$SSH_CONFIG" "$SSH_CONFIG.bak.$(date +%F-%T)"
+        echo "Backed up $SSH_CONFIG to $SSH_CONFIG.bak.$(date +%F-%T)"
+
+        # Add SSH hardening settings
+        echo "DenyUsers root" >> "$SSH_CONFIG"
+        echo "LoginGraceTime 2m" >> "$SSH_CONFIG"
+        echo "PermitRootLogin no" >> "$SSH_CONFIG"
+        echo "MaxAuthTries 2" >> "$SSH_CONFIG"
+        echo "MaxSessions 1" >> "$SSH_CONFIG"
+        echo -e "${GREEN}Added security settings to SSH config.${NC}"
+
+        # Handle AllowUsers directive
+        if [ -n "$allowed_user" ]; then
+            echo "AllowUsers $allowed_user" >> "$SSH_CONFIG"
+            echo -e "${GREEN}Updated $SSH_CONFIG to allow only '$allowed_user'.${NC}"
+        else
+            echo "DenyUsers *" >> "$SSH_CONFIG"
+            echo -e "${GREEN}Updated $SSH_CONFIG to deny all users.${NC}"
+        fi
+    else
+        echo -e "${YELLOW}Warning: $SSH_CONFIG not found. SSH service stopped but config not modified.${NC}"
+    fi
+    
+    echo "-------------------"
+    echo -e "${GREEN}SSH configured and disabled. Enhanced security applied.${NC}"
+}
+
+
+
+# Main execution
+main() {
+    check_sudo
+    script_intro
+    detect_os
+    get_user_preferences
+    
+    if [ "$configure_netplan" = "y" ]; then
+        get_ip_config
+    fi
+    
+    get_domain_config
+    configure_hostname
+    disable_ssh
+    update_upgrade
+    rsyslog_disable
+    install_docker_vmconnector
+    install_aleph_vm
+    install_caddy
+    configure_caddy_aleph
+    
+    if [ "$configure_netplan" = "y" ]; then
+        configure_persistent_network
+    fi
+
+    display_completion
 }
 
 # Run the main function
